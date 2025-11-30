@@ -15,8 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 // Use environment variable for WebSocket URL
-const WS_ADDRESS =
-  import.meta.env.VITE_WS_ADDRESS || "ws://167.71.158.242:3000";
+const WS_ADDRESS = import.meta.env.VITE_WS_ADDRESS || "wss://167.71.158.242/ws";
 
 // Message type definition
 type Message = {
