@@ -95,7 +95,6 @@ const ChatApp = () => {
   const [connected, setConnected] = useState<boolean>(false);
   const [needsName, setNeedsName] = useState<boolean>(true);
   const [nameDialogOpen, setNameDialogOpen] = useState<boolean>(true);
-  const [, setDesiredName] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const scrollToBottom = () => {
@@ -155,9 +154,7 @@ const ChatApp = () => {
     };
   }, []);
 
-  // Handles sending a name to server when entered in dialog
   const handleNameSubmit = (nameFromDialog: string) => {
-    setDesiredName(nameFromDialog);
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(nameFromDialog);
     }
