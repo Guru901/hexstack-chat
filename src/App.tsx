@@ -45,7 +45,7 @@ const ChatApp = () => {
   }, [messages]);
 
   useEffect(() => {
-    const websocket = new WebSocket("ws://167.71.158.242:3000/");
+    const websocket = new WebSocket("wss://167.71.158.242/ws/");
 
     websocket.onopen = () => {
       setConnected(true);
