@@ -14,6 +14,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
+// Use environment variable for WebSocket URL
+const WS_ADDRESS =
+  import.meta.env.VITE_WS_ADDRESS || "ws://167.71.158.242:3000";
+
 // Message type definition
 type Message = {
   text: string;
@@ -111,7 +115,7 @@ const ChatApp = () => {
   }, [needsName]);
 
   useEffect(() => {
-    const websocket = new WebSocket("ws://167.71.158.242:3000");
+    const websocket = new WebSocket(WS_ADDRESS);
 
     websocket.onopen = () => {
       setConnected(true);
