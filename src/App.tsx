@@ -5,16 +5,10 @@ import {
   type ChangeEvent,
   type KeyboardEvent,
 } from "react";
-import { Send, Users, LogOut, Circle } from "lucide-react";
+import { Send, LogOut, Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -27,6 +21,72 @@ type Message = {
   system?: boolean;
 };
 
+const NameDialog = ({
+  open,
+  onSubmit,
+}: {
+  open: boolean;
+  onSubmit: (name: string) => void;
+}) => {
+  const [name, setName] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus the input when open
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => inputRef.current?.focus(), 10);
+    }
+  }, [open]);
+
+  const handleDialogSubmit = (e?: React.FormEvent | React.KeyboardEvent) => {
+    if (e) e.preventDefault();
+    if (name.trim()) {
+      onSubmit(name.trim());
+      setName("");
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
+      tabIndex={-1}
+      aria-modal="true"
+      role="dialog"
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          handleDialogSubmit(e);
+        }
+      }}
+    >
+      <form
+        className="relative w-full max-w-xs bg-background rounded-lg shadow-xl p-6 flex flex-col gap-4 items-center"
+        onSubmit={handleDialogSubmit}
+      >
+        <div className="w-full flex flex-col gap-2 items-center">
+          <span className="text-lg font-semibold">Enter your name</span>
+          <Input
+            ref={inputRef}
+            type="text"
+            value={name}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setName(e.target.value)
+            }
+            placeholder="Your name..."
+            maxLength={32}
+            className="w-full"
+            autoFocus
+          />
+        </div>
+        <Button type="submit" className="w-full" disabled={!name.trim()}>
+          Join Chat
+        </Button>
+      </form>
+    </div>
+  );
+};
+
 // Allow for ws to be null or WebSocket
 const ChatApp = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -34,6 +94,8 @@ const ChatApp = () => {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [connected, setConnected] = useState<boolean>(false);
   const [needsName, setNeedsName] = useState<boolean>(true);
+  const [nameDialogOpen, setNameDialogOpen] = useState<boolean>(true);
+  const [, setDesiredName] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const scrollToBottom = () => {
@@ -44,8 +106,13 @@ const ChatApp = () => {
     scrollToBottom();
   }, [messages]);
 
+  // Only open name dialog if needs name is true
   useEffect(() => {
-    const websocket = new WebSocket("wss://167.71.158.242/ws/");
+    setNameDialogOpen(needsName);
+  }, [needsName]);
+
+  useEffect(() => {
+    const websocket = new WebSocket("ws://167.71.158.242:3000");
 
     websocket.onopen = () => {
       setConnected(true);
@@ -61,11 +128,13 @@ const ChatApp = () => {
           msg.includes("Name cannot be empty"))
       ) {
         setNeedsName(true);
+        setNameDialogOpen(true);
       } else if (
         typeof msg === "string" &&
         msg.includes("You can start chatting now")
       ) {
         setNeedsName(false);
+        setNameDialogOpen(false);
       }
     };
 
@@ -86,6 +155,15 @@ const ChatApp = () => {
     };
   }, []);
 
+  // Handles sending a name to server when entered in dialog
+  const handleNameSubmit = (nameFromDialog: string) => {
+    setDesiredName(nameFromDialog);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(nameFromDialog);
+    }
+    setNameDialogOpen(false);
+  };
+
   const handleSubmit = () => {
     if (!input.trim()) return;
 
@@ -94,7 +172,7 @@ const ChatApp = () => {
       return;
     }
 
-    if (ws && ws.readyState === WebSocket.OPEN) {
+    if (ws && ws.readyState === WebSocket.OPEN && !needsName) {
       ws.send(input);
       setInput("");
     }
@@ -128,19 +206,10 @@ const ChatApp = () => {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <NameDialog open={nameDialogOpen} onSubmit={handleNameSubmit} />
       <Card className="w-full max-w-4xl h-[90vh] flex flex-col">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Users className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <CardTitle className="text-2xl">Chat Room</CardTitle>
-                <CardDescription>Real-time messaging</CardDescription>
-              </div>
-            </div>
-
             <div className="flex items-center gap-3">
               <Badge
                 variant={connected ? "default" : "destructive"}
@@ -260,16 +329,16 @@ const ChatApp = () => {
                 onKeyDown={handleKeyPress}
                 placeholder={
                   needsName
-                    ? "👤 Enter your name..."
+                    ? "Enter your name to start" // input blocked, dialog used
                     : "💬 Type your message..."
                 }
-                disabled={!connected}
+                disabled={!connected || needsName}
                 className="flex-1"
               />
 
               <Button
                 onClick={handleSubmit}
-                disabled={!connected || !input.trim()}
+                disabled={!connected || !input.trim() || needsName}
                 size="icon"
                 className="shrink-0"
               >
