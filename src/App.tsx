@@ -267,8 +267,8 @@ const ChatApp = () => {
 
         <Separator />
 
-        <CardContent className="flex-1 flex flex-col p-0">
-          <ScrollArea className="flex-1 p-6">
+        <CardContent className="flex flex-col p-0 flex-1">
+          <ScrollArea className="h-[68vh] p-6 min-h-0">
             <div className="space-y-4">
               {messages.map((msg, idx) => {
                 const type = msg.message_type;
@@ -292,7 +292,8 @@ const ChatApp = () => {
                     msg.data.split(":")[0] === myName ||
                     msg.data.startsWith("Me:");
 
-                  console.log(isSentByMe);
+                  // Remove debug log for production:
+                  // console.log(isSentByMe);
 
                   if (isSentByMe) {
                     return <MyMessage msg={msg} key={idx} />;
@@ -307,7 +308,8 @@ const ChatApp = () => {
                     msg.data.split(":")[0] === myName ||
                     msg.data.startsWith("Me:");
 
-                  console.log(isSentByMe);
+                  // Remove debug log for production:
+                  // console.log(isSentByMe);
 
                   if (isSentByMe) {
                     return <MyMessage msg={msg} key={idx} />;
