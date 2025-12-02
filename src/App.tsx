@@ -12,9 +12,9 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MessageType, type Message } from "./lib/types";
 import MyMessage from "./components/myMessage";
+import OtherMessage from "./components/otherMessage";
 
 // Use environment variable for WebSocket URL
 const WS_ADDRESS = import.meta.env.VITE_WS_ADDRESS || "wss://167.71.158.242/ws";
@@ -228,10 +228,6 @@ const ChatApp = () => {
     }
   };
 
-  const getInitials = (name: string) => {
-    return name.substring(0, 2).toUpperCase();
-  };
-
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <NameDialog open={nameDialogOpen} onSubmit={handleNameSubmit} />
@@ -291,45 +287,26 @@ const ChatApp = () => {
                 }
 
                 if (type === MessageType.Chat) {
-                  return <MyMessage msg={msg} key={idx} />;
-                }
-
-                if (type === MessageType.PastMessages) {
-                  // Extract name and message
-                  const colonIndex = msg.data.indexOf(":");
-                  const name =
-                    colonIndex > 0 ? msg.data.substring(0, colonIndex) : "User";
-                  const message =
-                    colonIndex > 0
-                      ? msg.data.substring(colonIndex + 1).trim()
-                      : msg.data;
-
                   const myName = localStorage.getItem(LOCALSTORAGE_NAME_KEY);
-                  const isSentByMe = msg.data.startsWith(myName!);
+                  const isSentByMe =
+                    msg.data.startsWith(myName!) || msg.data.startsWith("Me:");
 
                   if (isSentByMe) {
                     return <MyMessage msg={msg} key={idx} />;
                   } else {
-                    return (
-                      <div key={idx} className="flex justify-start gap-3">
-                        <Avatar className="w-8 h-8">
-                          <AvatarFallback className="bg-muted text-xs">
-                            {getInitials(name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col max-w-md">
-                          <span className="text-xs font-medium text-muted-foreground mb-1">
-                            {name}
-                          </span>
-                          <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-2.5">
-                            <p className="text-sm">{message}</p>
-                          </div>
-                          <span className="text-xs text-muted-foreground mt-1">
-                            {msg.date.toLocaleTimeString()}
-                          </span>
-                        </div>
-                      </div>
-                    );
+                    return <OtherMessage msg={msg} key={idx} />;
+                  }
+                }
+
+                if (type === MessageType.PastMessages) {
+                  const myName = localStorage.getItem(LOCALSTORAGE_NAME_KEY);
+                  const isSentByMe =
+                    msg.data.startsWith(myName!) || msg.data.startsWith("Me:");
+
+                  if (isSentByMe) {
+                    return <MyMessage msg={msg} key={idx} />;
+                  } else {
+                    return <OtherMessage msg={msg} key={idx} />;
                   }
                 }
               })}
