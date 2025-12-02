@@ -14,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MessageType, type Message } from "./lib/types";
+import MyMessage from "./components/myMessage";
 
 // Use environment variable for WebSocket URL
 const WS_ADDRESS = import.meta.env.VITE_WS_ADDRESS || "wss://167.71.158.242/ws";
@@ -168,7 +169,7 @@ const ChatApp = () => {
       } else if (
         typeof event.data === "string" &&
         message.message_type === MessageType.Welcome &&
-        message.data === "You can start chatting now"
+        message.data.includes("You can start chatting now")
       ) {
         setNeedsName(false);
         setNameDialogOpen(false);
@@ -275,13 +276,10 @@ const ChatApp = () => {
             <div className="space-y-4">
               {messages.map((msg, idx) => {
                 const type = msg.message_type;
-                console.log(msg);
-
                 if (
                   type === MessageType.Welcome ||
                   type === MessageType.System
                 ) {
-                  console.log("here");
                   return (
                     <div key={idx} className="flex justify-center">
                       <Badge variant="outline" className="gap-2">
@@ -293,55 +291,49 @@ const ChatApp = () => {
                 }
 
                 if (type === MessageType.Chat) {
-                  return (
-                    <div key={idx} className="flex justify-end gap-3">
-                      <div className="flex flex-col items-end max-w-md">
-                        <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-4 py-2.5">
-                          <p className="text-sm">{msg.data}</p>
-                        </div>
-                        <span className="text-xs text-muted-foreground mt-1">
-                          {msg.date.toLocaleTimeString()}
-                        </span>
-                      </div>
-                      <Avatar className="w-8 h-8">
-                        <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                          ME
-                        </AvatarFallback>
-                      </Avatar>
-                    </div>
-                  );
+                  return <MyMessage msg={msg} key={idx} />;
                 }
 
-                // Extract name and message
-                const colonIndex = msg.data.indexOf(":");
-                const name =
-                  colonIndex > 0 ? msg.data.substring(0, colonIndex) : "User";
-                const message =
-                  colonIndex > 0
-                    ? msg.data.substring(colonIndex + 1).trim()
-                    : msg.data;
+                if (type === MessageType.PastMessages) {
+                  // Extract name and message
+                  const colonIndex = msg.data.indexOf(":");
+                  const name =
+                    colonIndex > 0 ? msg.data.substring(0, colonIndex) : "User";
+                  const message =
+                    colonIndex > 0
+                      ? msg.data.substring(colonIndex + 1).trim()
+                      : msg.data;
 
-                return (
-                  <div key={idx} className="flex justify-start gap-3">
-                    <Avatar className="w-8 h-8">
-                      <AvatarFallback className="bg-muted text-xs">
-                        {getInitials(name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col max-w-md">
-                      <span className="text-xs font-medium text-muted-foreground mb-1">
-                        {name}
-                      </span>
-                      <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-2.5">
-                        <p className="text-sm">{message}</p>
+                  const myName = localStorage.getItem(LOCALSTORAGE_NAME_KEY);
+                  const isSentByMe = msg.data.startsWith(myName!);
+
+                  if (isSentByMe) {
+                    return <MyMessage msg={msg} key={idx} />;
+                  } else {
+                    return (
+                      <div key={idx} className="flex justify-start gap-3">
+                        <Avatar className="w-8 h-8">
+                          <AvatarFallback className="bg-muted text-xs">
+                            {getInitials(name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col max-w-md">
+                          <span className="text-xs font-medium text-muted-foreground mb-1">
+                            {name}
+                          </span>
+                          <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-2.5">
+                            <p className="text-sm">{message}</p>
+                          </div>
+                          <span className="text-xs text-muted-foreground mt-1">
+                            {msg.date.toLocaleTimeString()}
+                          </span>
+                        </div>
                       </div>
-                      <span className="text-xs text-muted-foreground mt-1">
-                        {msg.date.toLocaleTimeString()}
-                      </span>
-                    </div>
-                  </div>
-                );
+                    );
+                  }
+                }
               })}
+
               <div ref={messagesEndRef} />
             </div>
           </ScrollArea>
