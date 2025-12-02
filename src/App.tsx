@@ -13,16 +13,12 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { MessageType, type Message } from "./lib/types";
 
 // Use environment variable for WebSocket URL
 const WS_ADDRESS = import.meta.env.VITE_WS_ADDRESS || "wss://167.71.158.242/ws";
 
-// Message type definition
-type Message = {
-  text: string;
-  timestamp: Date;
-  system?: boolean;
-};
+const LOCALSTORAGE_NAME_KEY = "chat_user_name";
 
 const NameDialog = ({
   open,
@@ -34,17 +30,26 @@ const NameDialog = ({
   const [name, setName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Focus the input when open
+  // Autofill from localStorage if available when dialog opens
   useEffect(() => {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 10);
+      const savedName = localStorage.getItem(LOCALSTORAGE_NAME_KEY);
+      if (savedName && savedName.trim()) {
+        setTimeout(() => setName(savedName), 0);
+      }
     }
   }, [open]);
 
   const handleDialogSubmit = (e?: React.FormEvent | React.KeyboardEvent) => {
     if (e) e.preventDefault();
-    if (name.trim()) {
-      onSubmit(name.trim());
+    const trimmed = name.trim();
+    if (trimmed) {
+      const savedName = localStorage.getItem(LOCALSTORAGE_NAME_KEY);
+      if (!savedName || savedName !== trimmed) {
+        localStorage.setItem(LOCALSTORAGE_NAME_KEY, trimmed);
+      }
+      onSubmit(trimmed);
       setName("");
     }
   };
@@ -90,15 +95,27 @@ const NameDialog = ({
   );
 };
 
-// Allow for ws to be null or WebSocket
+// Avoid duplicate WebSocket effects and double messages (React StrictMode mounts components twice in dev)
+const wsRef = { current: null as WebSocket | null };
+
 const ChatApp = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState<string>("");
-  const [ws, setWs] = useState<WebSocket | null>(null);
   const [connected, setConnected] = useState<boolean>(false);
   const [needsName, setNeedsName] = useState<boolean>(true);
   const [nameDialogOpen, setNameDialogOpen] = useState<boolean>(true);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Check localStorage for name to pre-fill or attempt to auto-submit
+  useEffect(() => {
+    if (nameDialogOpen) {
+      const savedName = localStorage.getItem(LOCALSTORAGE_NAME_KEY);
+      if (savedName && savedName.trim()) {
+        // Try to submit automatically if possible when dialog opens
+        handleNameSubmit(savedName.trim());
+      }
+    }
+  }, [nameDialogOpen]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -114,26 +131,44 @@ const ChatApp = () => {
   }, [needsName]);
 
   useEffect(() => {
+    if (wsRef.current) return;
+
     const websocket = new WebSocket(WS_ADDRESS);
+    wsRef.current = websocket;
 
     websocket.onopen = () => {
       setConnected(true);
+
+      // On connect, if there is a saved name and dialog isn't open, try sending it
+      const savedName = localStorage.getItem(LOCALSTORAGE_NAME_KEY);
+      if (savedName && savedName.trim() && needsName) {
+        websocket.send(savedName.trim());
+      }
     };
 
     websocket.onmessage = (event: MessageEvent) => {
-      const msg = event.data;
-      setMessages((prev) => [...prev, { text: msg, timestamp: new Date() }]);
+      const message = JSON.parse(event.data) as Message;
+
+      setMessages((prev) => {
+        const newMsg = {
+          message_type: message.message_type,
+          data: message.data,
+          date: new Date(),
+        };
+        return [...prev, newMsg];
+      });
 
       if (
-        typeof msg === "string" &&
-        (msg.includes("Please enter your name") ||
-          msg.includes("Name cannot be empty"))
+        typeof event.data === "string" &&
+        message.message_type === MessageType.System &&
+        message.data === "Name cannot be empty"
       ) {
         setNeedsName(true);
         setNameDialogOpen(true);
       } else if (
-        typeof msg === "string" &&
-        msg.includes("You can start chatting now")
+        typeof event.data === "string" &&
+        message.message_type === MessageType.Welcome &&
+        message.data === "You can start chatting now"
       ) {
         setNeedsName(false);
         setNameDialogOpen(false);
@@ -141,25 +176,28 @@ const ChatApp = () => {
     };
 
     websocket.onclose = () => {
-      setMessages((prev) => [...prev]);
       setConnected(false);
     };
 
     websocket.onerror = () => {
-      setMessages((prev) => [...prev]);
+      // Intentionally don't update messages to avoid artifact (unless you want to log error as system msg)
     };
-
-    // Avoid setState synchronously in effect: move setWs to microtask
-    Promise.resolve().then(() => setWs(websocket));
 
     return () => {
       websocket.close();
+      wsRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleNameSubmit = (nameFromDialog: string) => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(nameFromDialog);
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(nameFromDialog);
+    }
+    // Save name to localStorage if not already there (in case dialog is auto-submitted)
+    const savedName = localStorage.getItem(LOCALSTORAGE_NAME_KEY);
+    if (!savedName || savedName !== nameFromDialog) {
+      localStorage.setItem(LOCALSTORAGE_NAME_KEY, nameFromDialog);
     }
     setNameDialogOpen(false);
   };
@@ -168,12 +206,16 @@ const ChatApp = () => {
     if (!input.trim()) return;
 
     if (input === "/quit" || input === "/exit") {
-      ws?.close();
+      wsRef.current?.close();
       return;
     }
 
-    if (ws && ws.readyState === WebSocket.OPEN && !needsName) {
-      ws.send(input);
+    if (
+      wsRef.current &&
+      wsRef.current.readyState === WebSocket.OPEN &&
+      !needsName
+    ) {
+      wsRef.current.send(input);
       setInput("");
     }
   };
@@ -183,21 +225,6 @@ const ChatApp = () => {
       e.preventDefault();
       handleSubmit();
     }
-  };
-
-  const getMessageType = (msg: string) => {
-    if (
-      msg.includes("joined") ||
-      msg.includes("Welcome") ||
-      msg.includes("left") ||
-      msg.includes("Please enter")
-    ) {
-      return "system";
-    }
-    if (msg.startsWith("Me:")) {
-      return "me";
-    }
-    return "other";
   };
 
   const getInitials = (name: string) => {
@@ -231,7 +258,7 @@ const ChatApp = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => ws?.close()}
+                onClick={() => wsRef.current?.close()}
                 title="Disconnect"
                 disabled={!connected}
               >
@@ -247,30 +274,33 @@ const ChatApp = () => {
           <ScrollArea className="flex-1 p-6">
             <div className="space-y-4">
               {messages.map((msg, idx) => {
-                const type = getMessageType(msg.text);
+                const type = msg.message_type;
+                console.log(msg);
 
-                if (type === "system") {
+                if (
+                  type === MessageType.Welcome ||
+                  type === MessageType.System
+                ) {
+                  console.log("here");
                   return (
                     <div key={idx} className="flex justify-center">
                       <Badge variant="outline" className="gap-2">
                         <Circle className="w-2 h-2 fill-current" />
-                        {msg.text}
+                        {msg.data}
                       </Badge>
                     </div>
                   );
                 }
 
-                if (type === "me") {
+                if (type === MessageType.Chat) {
                   return (
                     <div key={idx} className="flex justify-end gap-3">
                       <div className="flex flex-col items-end max-w-md">
                         <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-4 py-2.5">
-                          <p className="text-sm">
-                            {msg.text.replace("Me: ", "")}
-                          </p>
+                          <p className="text-sm">{msg.data}</p>
                         </div>
                         <span className="text-xs text-muted-foreground mt-1">
-                          {msg.timestamp.toLocaleTimeString()}
+                          {msg.date.toLocaleTimeString()}
                         </span>
                       </div>
                       <Avatar className="w-8 h-8">
@@ -283,13 +313,13 @@ const ChatApp = () => {
                 }
 
                 // Extract name and message
-                const colonIndex = msg.text.indexOf(":");
+                const colonIndex = msg.data.indexOf(":");
                 const name =
-                  colonIndex > 0 ? msg.text.substring(0, colonIndex) : "User";
+                  colonIndex > 0 ? msg.data.substring(0, colonIndex) : "User";
                 const message =
                   colonIndex > 0
-                    ? msg.text.substring(colonIndex + 1).trim()
-                    : msg.text;
+                    ? msg.data.substring(colonIndex + 1).trim()
+                    : msg.data;
 
                 return (
                   <div key={idx} className="flex justify-start gap-3">
@@ -306,7 +336,7 @@ const ChatApp = () => {
                         <p className="text-sm">{message}</p>
                       </div>
                       <span className="text-xs text-muted-foreground mt-1">
-                        {msg.timestamp.toLocaleTimeString()}
+                        {msg.date.toLocaleTimeString()}
                       </span>
                     </div>
                   </div>
@@ -329,7 +359,7 @@ const ChatApp = () => {
                 onKeyDown={handleKeyPress}
                 placeholder={
                   needsName
-                    ? "Enter your name to start" // input blocked, dialog used
+                    ? "Enter your name to start"
                     : "💬 Type your message..."
                 }
                 disabled={!connected || needsName}
