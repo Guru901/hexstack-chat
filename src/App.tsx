@@ -268,7 +268,7 @@ const ChatApp = () => {
         <Separator />
 
         <CardContent className="flex flex-col p-0 flex-1">
-          <ScrollArea className="h-[68vh] p-6 min-h-0">
+          <ScrollArea className="h-[68vh] p-4 md:p-6 min-h-0">
             <div className="space-y-4">
               {messages.map((msg, idx) => {
                 const type = msg.message_type;

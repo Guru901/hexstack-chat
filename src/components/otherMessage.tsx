@@ -1,5 +1,5 @@
 import type { Message } from "@/lib/types";
-import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import ChatBubble from "./chat-bubble";
 
 export default function OtherMessage({ msg }: { msg: Message }) {
