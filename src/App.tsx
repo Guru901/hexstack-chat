@@ -289,7 +289,10 @@ const ChatApp = () => {
                 if (type === MessageType.Chat) {
                   const myName = localStorage.getItem(LOCALSTORAGE_NAME_KEY);
                   const isSentByMe =
-                    msg.data.startsWith(myName!) || msg.data.startsWith("Me:");
+                    msg.data.split(":")[0] === myName ||
+                    msg.data.startsWith("Me:");
+
+                  console.log(isSentByMe);
 
                   if (isSentByMe) {
                     return <MyMessage msg={msg} key={idx} />;
@@ -301,7 +304,10 @@ const ChatApp = () => {
                 if (type === MessageType.PastMessages) {
                   const myName = localStorage.getItem(LOCALSTORAGE_NAME_KEY);
                   const isSentByMe =
-                    msg.data.startsWith(myName!) || msg.data.startsWith("Me:");
+                    msg.data.split(":")[0] === myName ||
+                    msg.data.startsWith("Me:");
+
+                  console.log(isSentByMe);
 
                   if (isSentByMe) {
                     return <MyMessage msg={msg} key={idx} />;
