@@ -1,5 +1,6 @@
 import type { Message } from "@/lib/types";
 import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
+import ChatBubble from "./chat-bubble";
 
 export default function OtherMessage({ msg }: { msg: Message }) {
   const getInitials = (name: string) => {
@@ -23,9 +24,7 @@ export default function OtherMessage({ msg }: { msg: Message }) {
         <span className="text-xs font-medium text-muted-foreground mb-1">
           {name}
         </span>
-        <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-2.5">
-          <p className="text-sm">{message}</p>
-        </div>
+        <ChatBubble message={message} isSentByMe={false} />
         <span className="text-xs text-muted-foreground mt-1">
           {msg.date.toLocaleTimeString()}
         </span>

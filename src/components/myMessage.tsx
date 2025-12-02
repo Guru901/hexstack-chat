@@ -1,5 +1,6 @@
 import type { Message } from "@/lib/types";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import ChatBubble from "./chat-bubble";
 
 export default function MyMessage({ msg }: { msg: Message }) {
   const colonIndex = msg.data.indexOf(":");
@@ -8,9 +9,7 @@ export default function MyMessage({ msg }: { msg: Message }) {
   return (
     <div className="flex justify-end gap-3">
       <div className="flex flex-col items-end max-w-md">
-        <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-4 py-2.5">
-          <p className="text-sm">{message}</p>
-        </div>
+        <ChatBubble message={message} isSentByMe={true} />
         <span className="text-xs text-muted-foreground mt-1">
           {msg.date.toLocaleTimeString()}
         </span>
