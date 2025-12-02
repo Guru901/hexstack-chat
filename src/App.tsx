@@ -325,8 +325,8 @@ const ChatApp = () => {
 
           <Separator />
 
-          <div className="p-4 space-y-2">
-            <div className="flex gap-2">
+          <div className="p-4 space-y-2 flex flex-col items-center justify-center w-full">
+            <div className="flex gap-2 w-full">
               <Input
                 type="text"
                 value={input}
